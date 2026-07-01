@@ -25,8 +25,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .nav-btn{background:none;border:none;border-bottom:3px solid transparent;color:var(--gray);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;padding:14px 18px;cursor:pointer;transition:all .18s;white-space:nowrap;}
 .nav-btn:hover{color:var(--black);border-bottom-color:var(--border-dark);}
 .nav-btn.active{color:var(--green-d);border-bottom-color:var(--green);}
-.main{padding:28px 32px;max-width:1300px;margin:0 auto;}
-.section{display:none !important;}.section.active{display:block !important;}
+.main{padding:28px 32px;max-width:1300px;margin:0 auto;position:relative;}
+.section{display:none !important;position:absolute !important;left:-99999px !important;top:-99999px !important;pointer-events:none !important;}.section.active{display:block !important;position:static !important;left:auto !important;top:auto !important;pointer-events:auto !important;}
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
 .kpi{background:#fff;border:1.5px solid var(--border);border-radius:var(--rl);padding:20px 22px;position:relative;overflow:hidden;transition:box-shadow .2s;}
 .kpi:hover{box-shadow:0 4px 20px rgba(0,0,0,.07);}
@@ -507,23 +507,7 @@ td.c50{background:#fff3ec40;border-left:2px solid #f5c5a0;color:var(--orange);fo
     </div>
   </div>
 
-  <!-- Movimentações integradas -->
-  <div style="margin-bottom:24px;">
-    <div style="font-size:11px;font-weight:700;color:var(--gray-l);letter-spacing:.8px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
-      <span style="flex:1;height:1px;background:var(--border);display:block;"></span>
-      <span>Histórico de Movimentações</span>
-      <span style="flex:1;height:1px;background:var(--border);display:block;"></span>
-    </div>
-    <div class="info-box">🔄 Entradas, saídas e reajustes detectados automaticamente ao comparar a base de cada mês com o mês anterior.</div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title">Histórico de Movimentações</span></div>
-      <div class="panel-body" style="padding:0;">
-        <table><thead><tr><th>Mês</th><th>Tipo</th><th>Prestador</th><th>Departamento</th><th>Função</th><th>Detalhe</th></tr></thead>
-        <tbody id="movTableRegras"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+
 
 </div>
 <!-- ═══════════ PROVISÃO INDIVIDUAL ═══════════ -->
@@ -600,9 +584,176 @@ td.c50{background:#fff3ec40;border-left:2px solid #f5c5a0;color:var(--orange);fo
 </div>
 
 
+<!-- ═══════════ IMPORTAR MÊS ═══════════ -->
+<div id="sec-importar" class="section">
+
+  <!-- Banner -->
+  <div style="background:var(--black);border-radius:var(--rl);padding:24px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:20px;">
+    <div style="display:flex;align-items:center;gap:20px;">
+      <div style="font-size:32px;">📁</div>
+      <div>
+        <div style="color:var(--green);font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;">Sincronização Automática</div>
+        <div style="color:#fff;font-size:18px;font-weight:800;margin-bottom:4px;">Sincronizar Pasta de Arquivos</div>
+        <div style="color:#9ca3af;font-size:12px;">Selecione a pasta onde ficam os arquivos mensais. O sistema lê todos os .xlsx, detecta o mês de cada um e atualiza a base automaticamente.</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="selecionarPasta()" id="btnSelecionarPasta" style="font-size:14px;padding:14px 28px;white-space:nowrap;flex-shrink:0;">
+      📁 Selecionar Pasta
+    </button>
+  </div>
+
+  <!-- Status da pasta selecionada -->
+  <div id="pastaInfo" style="display:none;margin-bottom:20px;">
+    <div style="background:var(--green-l);border:1.5px solid #b8dbb9;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:22px;">📂</span>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:14px;" id="pastaNome">—</div>
+        <div style="font-size:12px;color:var(--gray);" id="pastaDesc">—</div>
+      </div>
+      <button class="btn btn-secondary" onclick="selecionarPasta()" style="font-size:12px;">Trocar pasta</button>
+      <button class="btn btn-primary" onclick="sincronizarPasta()" id="btnSincronizar" style="font-size:12px;">🔄 Sincronizar Agora</button>
+    </div>
+  </div>
+
+  <!-- Aviso compatibilidade -->
+  <div id="avisoCompat" style="display:none;" class="warn-box">
+    ⚠️ Seu navegador não suporta seleção de pasta. Use o Google Chrome ou Microsoft Edge para essa funcionalidade.
+    <br><span style="font-size:11px;margin-top:4px;display:block;">Alternativa: use a importação manual abaixo para carregar arquivo por arquivo.</span>
+  </div>
+
+  <!-- Progresso -->
+  <div class="panel" id="progressPanel" style="display:none;">
+    <div class="panel-header"><span class="panel-title">Processando arquivos...</span></div>
+    <div class="panel-body">
+      <div id="progressList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+          <span id="progressLabel" style="color:var(--gray);">Aguardando...</span>
+          <span id="progressPct" class="mono" style="font-weight:700;">0%</span>
+        </div>
+        <div class="progress-bar" style="height:8px;"><div class="progress-fill" id="progressBar" style="width:0%;transition:width .3s;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resultado sincronização -->
+  <div class="panel" id="syncResultPanel" style="display:none;">
+    <div class="panel-header" style="background:var(--green-d);">
+      <span class="panel-title" style="color:#fff;">✓ Sincronização concluída!</span>
+      <span id="syncResultBadge" class="badge badge-green" style="background:rgba(255,255,255,.2);color:#fff;"></span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Arquivo</th><th>Tipo</th><th>Mês</th><th>Funcionários</th><th>Situação</th><th>Entradas</th><th>Saídas</th><th>Reajustes</th></tr></thead>
+        <tbody id="syncResultTable"></tbody>
+      </table>
+    </div>
+    <div style="padding:16px 20px;border-top:1.5px solid var(--border);display:flex;gap:12px;">
+      <button class="btn btn-primary" onclick="showSection('dashboard',document.querySelector('.nav-btn'))" style="font-size:13px;">→ Ver Dashboard Atualizado</button>
+      <button class="btn btn-secondary" onclick="sincronizarPasta()" style="font-size:13px;">🔄 Sincronizar novamente</button>
+    </div>
+  </div>
+
+  <!-- Divisor -->
+  <div style="margin-top:28px;margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:700;color:var(--gray-l);letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
+      <span style="flex:1;height:1px;background:var(--border);display:block;"></span>
+      <span>ou importe um arquivo por vez</span>
+      <span style="flex:1;height:1px;background:var(--border);display:block;"></span>
+    </div>
+  </div>
+
+  <!-- Importação manual -->
+  <div class="grid-2" style="margin-bottom:20px;">
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Selecionar arquivo único</span></div>
+      <div class="panel-body">
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('xlsxInput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--green)'"
+          ondragleave="this.style.borderColor=''"
+          ondrop="event.preventDefault();this.style.borderColor='';handleDrop(event)">
+          <div class="upload-icon" style="pointer-events:none;">📂</div>
+          <div class="upload-text" style="pointer-events:none;"><strong>Clique para selecionar</strong> ou arraste o arquivo</div>
+          <div class="upload-text" style="margin-top:6px;font-size:11px;color:var(--gray-l);pointer-events:none;">Formato: .xlsx — mesmo modelo dos meses anteriores</div>
+        </div>
+        <input type="file" id="xlsxInput" accept=".xlsx" style="display:none" onchange="handleFileSelect(this)">
+        <div id="fileInfo" style="margin-top:14px;display:none;">
+          <div style="background:var(--green-l);border:1.5px solid #b8dbb9;border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">📄</span>
+            <div>
+              <div style="font-weight:700;font-size:13px;" id="fileName">—</div>
+              <div style="font-size:11px;color:var(--gray);" id="fileSize">—</div>
+            </div>
+            <button class="icon-btn" style="margin-left:auto;" onclick="resetImport()">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Confirmar mês de referência</span></div>
+      <div class="panel-body">
+        <div class="info-box" style="margin-bottom:16px;">💡 O sistema detecta automaticamente a aba do mês no arquivo.</div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div class="form-group">
+            <label>Aba detectada no arquivo</label>
+            <input type="text" id="abaDetectada" readonly placeholder="Carregue o arquivo..." style="background:var(--surface2);color:var(--gray);">
+          </div>
+          <div class="form-group">
+            <label>Mês de referência (AAAA-MM)</label>
+            <input type="month" id="mesReferencia" value="2026-04">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnProcessar" onclick="processarImportacao()" disabled
+          style="width:100%;justify-content:center;opacity:.4;cursor:not-allowed;">
+          Processar Importação
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview diferenças -->
+  <div class="panel" id="previewPanel" style="display:none;">
+    <div class="panel-header">
+      <span class="panel-title">Revisão das alterações detectadas</span>
+      <div style="display:flex;gap:8px;">
+        <span class="badge badge-green" id="badgeEntradas">0 entradas</span>
+        <span class="badge badge-red" id="badgeSaidas">0 saídas</span>
+        <span class="badge badge-orange" id="badgeReajustes">0 reajustes</span>
+        <span class="badge badge-gray" id="badgeSemAlteracao">0 sem alteração</span>
+      </div>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Razão Social / Nome</th><th>Departamento</th><th>Função</th><th>Remuneração</th><th>Situação</th><th>Detalhe</th></tr></thead>
+        <tbody id="previewTable"></tbody>
+      </table>
+    </div>
+    <div style="padding:20px;border-top:1.5px solid var(--border);display:flex;gap:12px;align-items:center;">
+      <button class="btn btn-primary" onclick="confirmarEAplicar()" style="font-size:13px;">✓ Confirmar e Atualizar Sistema</button>
+      <button class="btn btn-secondary" onclick="resetImport()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Resultado importação manual -->
+  <div class="panel" id="resultPanel" style="display:none;">
+    <div class="panel-header" style="background:var(--green-d);">
+      <span class="panel-title" style="color:#fff;">✓ Importação concluída!</span>
+    </div>
+    <div class="panel-body" style="text-align:center;padding:36px;">
+      <div style="font-size:40px;margin-bottom:12px;">🎉</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:8px;" id="resultMsg">Base atualizada!</div>
+      <div style="font-size:13px;color:var(--gray);margin-bottom:24px;" id="resultSub">—</div>
+      <button class="btn btn-primary" onclick="showSection('dashboard',document.querySelector('.nav-btn'))" style="font-size:14px;padding:12px 28px;">→ Ver Dashboard</button>
+      <div style="margin-top:16px;"><button class="btn btn-secondary" onclick="resetImport()">Importar outro mês</button></div>
+    </div>
+  </div>
+
+</div>
+
 <!-- ═══════════ GUIA ═══════════ -->
 <div id="sec-guia" class="section">
-  <div class="warn-box">⚠️ A forma recomendada de atualizar é sempre pela aba <strong>⬆ Importar Mês</strong>. O guia manual abaixo serve apenas como referência ou para situações excepcionais.</div>
+  <div class="warn-box">⚠️ A forma recomendada de atualizar é sempre pela aba <strong>🔄 Sincronizar Base</strong>.</div>
 
   <div class="guide-card">
     <h3 style="font-size:16px;font-weight:800;margin-bottom:20px;padding-bottom:12px;border-bottom:1.5px solid var(--border);">Fluxo Mensal — Como Atualizar o Sistema</h3>
@@ -704,7 +855,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE EXPANSÃO",
       "dept": "EXPANSÃO",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 17796,
+      "salario": 17796.0,
       "tipo": "PJ"
     },
     {
@@ -714,7 +865,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE FRANQUIA",
       "dept": "OPERAÇÕES FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 15500,
+      "salario": 15500.0,
       "tipo": "PJ"
     },
     {
@@ -724,7 +875,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13700,
+      "salario": 13700.0,
       "tipo": "PJ"
     },
     {
@@ -734,7 +885,7 @@ const BASE_MESES = {
       "funcao": "GERENTE JURIDICO",
       "dept": "JURIDICO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 18767,
+      "salario": 18767.0,
       "tipo": "PJ"
     },
     {
@@ -744,7 +895,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20936,
+      "salario": 20936.0,
       "tipo": "PJ"
     },
     {
@@ -754,7 +905,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
+      "salario": 4000.0,
       "tipo": "PJ"
     },
     {
@@ -764,7 +915,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16724,
+      "salario": 16724.0,
       "tipo": "PJ"
     },
     {
@@ -774,7 +925,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE BI & ANALYTICS",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 15702,
+      "salario": 15702.0,
       "tipo": "PJ"
     },
     {
@@ -784,7 +935,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE RH",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20500,
+      "salario": 20500.0,
       "tipo": "PJ"
     },
     {
@@ -794,7 +945,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPS E QUALIDADE",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 23030,
+      "salario": 23030.0,
       "tipo": "PJ"
     },
     {
@@ -804,7 +955,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
+      "salario": 4000.0,
       "tipo": "PJ"
     },
     {
@@ -814,7 +965,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 8374,
+      "salario": 8374.0,
       "tipo": "PJ"
     },
     {
@@ -824,7 +975,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12000,
+      "salario": 12000.0,
       "tipo": "PJ"
     },
     {
@@ -844,7 +995,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12562,
+      "salario": 12562.0,
       "tipo": "PJ"
     },
     {
@@ -854,7 +1005,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE LOGÍSTICA",
       "dept": "LOGISTICA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -864,7 +1015,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE PRODUÇÃO",
       "dept": "PRODUÇÃO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -874,7 +1025,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE DHO",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9289,
+      "salario": 9289.0,
       "tipo": "PJ"
     },
     {
@@ -884,7 +1035,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE PESQUISA E DESENVOLVIMENTO SENIOR",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 8030,
+      "salario": 8030.0,
       "tipo": "PJ"
     },
     {
@@ -894,7 +1045,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10468,
+      "salario": 10468.0,
       "tipo": "PJ"
     },
     {
@@ -904,7 +1055,7 @@ const BASE_MESES = {
       "funcao": "DIRETOR PRESIDENTE",
       "dept": "DIRETORIA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 75834,
+      "salario": 75834.0,
       "tipo": "PJ"
     },
     {
@@ -914,7 +1065,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TRADE",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13608,
+      "salario": 13608.0,
       "tipo": "PJ"
     },
     {
@@ -924,7 +1075,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE SERVIÇO E INFRAESTRUTURA",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16495,
+      "salario": 16495.0,
       "tipo": "PJ"
     },
     {
@@ -934,7 +1085,7 @@ const BASE_MESES = {
       "funcao": "DIRETORA DE RH",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 41785,
+      "salario": 41785.0,
       "tipo": "PJ"
     },
     {
@@ -944,7 +1095,7 @@ const BASE_MESES = {
       "funcao": "CFO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 40000,
+      "salario": 40000.0,
       "tipo": "PJ"
     },
     {
@@ -954,7 +1105,7 @@ const BASE_MESES = {
       "funcao": "GERENTE COMERCIAL B2B",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 19000,
+      "salario": 19000.0,
       "tipo": "PJ"
     },
     {
@@ -964,7 +1115,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9200,
+      "salario": 9200.0,
       "tipo": "PJ"
     },
     {
@@ -974,7 +1125,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE TREINAMENTO",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9500,
+      "salario": 9500.0,
       "tipo": "PJ"
     },
     {
@@ -984,7 +1135,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE REVENUE",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 19500,
+      "salario": 19500.0,
       "tipo": "PJ"
     },
     {
@@ -994,7 +1145,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13500,
+      "salario": 13500.0,
       "tipo": "PJ"
     },
     {
@@ -1004,7 +1155,7 @@ const BASE_MESES = {
       "funcao": "GERENTE FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 22000,
+      "salario": 22000.0,
       "tipo": "PJ"
     },
     {
@@ -1014,19 +1165,8 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TI",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
-    },
-    {
-      "id": "033",
-      "cnpj": "CLT_24051771881",
-      "nome": "ALEXANDRE AUGUSTO SANTOS E SOUZA",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220.45,
-      "tipo": "CLT",
-      "admissao": "1970-01"
     },
     {
       "id": "034",
@@ -1035,7 +1175,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CONTROLADORIA SÊNIOR",
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 6500,
+      "salario": 6500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1068,29 +1208,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CANAIS DIGITAIS PLENO",
       "dept": "OPERAÇÕES LOJAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4400,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "038",
-      "cnpj": "CLT_06892856390",
-      "nome": "EDNALDO ESTEVAO BRITO",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3634.28,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "039",
-      "cnpj": "CLT_43221226802",
-      "nome": "EDUARDO LOPES GRIGOLETO",
-      "funcao": "ESTAGIARIO (A)",
-      "dept": "TECNOLOGIA",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1680,
+      "salario": 4400.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1150,24 +1268,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "045",
-      "cnpj": "CLT_50647630850",
-      "nome": "GIOVANNA FATARELLI SCARONI",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "MARKETING",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "046",
       "cnpj": "CLT_57799138890",
       "nome": "HENRIQUE PRADO BOAVENTURA",
       "funcao": "ANALISTA DE SUPPLY CHAIN JR",
       "dept": "COMPRAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3500,
+      "salario": 3500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1205,24 +1312,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "050",
-      "cnpj": "CLT_43869326824",
-      "nome": "MARCO AURELIO BORGES DOS SANTOS",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4151.07,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "051",
       "cnpj": "CLT_50017752809",
       "nome": "MARCUS VINICIUS AFONSO RICINO",
       "funcao": "ANALISTA DE MARKETING PLENO",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1233,7 +1329,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE REMUNERAÇÃO E BENEFÍCIOS PLENO",
       "dept": "DEPARTAMENTO PESSOAL",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1244,7 +1340,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE FRANQUIAS PLENO",
       "dept": "OPERAÇÕES DE FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 4500,
+      "salario": 4500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1299,7 +1395,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE MIDIAS SOCIAIS JUNIOR",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
+      "salario": 3200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1345,7 +1441,7 @@ const BASE_MESES = {
       "funcao": "DIRETOR PRESIDENTE",
       "dept": "DIRETORIA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 75834,
+      "salario": 75834.0,
       "tipo": "PJ"
     },
     {
@@ -1355,7 +1451,7 @@ const BASE_MESES = {
       "funcao": "DIRETORA DE RH",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 41785,
+      "salario": 41785.0,
       "tipo": "PJ"
     },
     {
@@ -1365,7 +1461,7 @@ const BASE_MESES = {
       "funcao": "CFO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 40000,
+      "salario": 40000.0,
       "tipo": "PJ"
     },
     {
@@ -1375,7 +1471,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20936,
+      "salario": 20936.0,
       "tipo": "PJ"
     },
     {
@@ -1385,7 +1481,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPS E QUALIDADE",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 23030,
+      "salario": 23030.0,
       "tipo": "PJ"
     },
     {
@@ -1395,7 +1491,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE EXPANSÃO",
       "dept": "EXPANSÃO",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 17796,
+      "salario": 17796.0,
       "tipo": "PJ"
     },
     {
@@ -1405,7 +1501,7 @@ const BASE_MESES = {
       "funcao": "GERENTE FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 22000,
+      "salario": 22000.0,
       "tipo": "PJ"
     },
     {
@@ -1415,7 +1511,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE RH",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20500,
+      "salario": 20500.0,
       "tipo": "PJ"
     },
     {
@@ -1425,7 +1521,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE LOGÍSTICA",
       "dept": "LOGISTICA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -1435,7 +1531,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE PRODUÇÃO",
       "dept": "PRODUÇÃO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -1445,7 +1541,7 @@ const BASE_MESES = {
       "funcao": "GERENTE COMERCIAL B2B",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 19000,
+      "salario": 19000.0,
       "tipo": "PJ"
     },
     {
@@ -1455,7 +1551,7 @@ const BASE_MESES = {
       "funcao": "GERENTE JURIDICO",
       "dept": "JURIDICO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 18767,
+      "salario": 18767.0,
       "tipo": "PJ"
     },
     {
@@ -1465,7 +1561,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE REVENUE",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 19500,
+      "salario": 19500.0,
       "tipo": "PJ"
     },
     {
@@ -1475,7 +1571,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16724,
+      "salario": 16724.0,
       "tipo": "PJ"
     },
     {
@@ -1485,7 +1581,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE SERVIÇO E INFRAESTRUTURA",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16495,
+      "salario": 16495.0,
       "tipo": "PJ"
     },
     {
@@ -1495,7 +1591,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE FRANQUIA",
       "dept": "OPERAÇÕES FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 15500,
+      "salario": 15500.0,
       "tipo": "PJ"
     },
     {
@@ -1505,7 +1601,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE BI & ANALYTICS",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 15702,
+      "salario": 15702.0,
       "tipo": "PJ"
     },
     {
@@ -1525,7 +1621,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13700,
+      "salario": 13700.0,
       "tipo": "PJ"
     },
     {
@@ -1535,7 +1631,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13500,
+      "salario": 13500.0,
       "tipo": "PJ"
     },
     {
@@ -1545,7 +1641,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TRADE",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13608,
+      "salario": 13608.0,
       "tipo": "PJ"
     },
     {
@@ -1555,7 +1651,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12562,
+      "salario": 12562.0,
       "tipo": "PJ"
     },
     {
@@ -1565,7 +1661,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12000,
+      "salario": 12000.0,
       "tipo": "PJ"
     },
     {
@@ -1575,7 +1671,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10468,
+      "salario": 10468.0,
       "tipo": "PJ"
     },
     {
@@ -1585,7 +1681,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE TREINAMENTO",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9500,
+      "salario": 9500.0,
       "tipo": "PJ"
     },
     {
@@ -1595,7 +1691,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE DHO",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9289,
+      "salario": 9289.0,
       "tipo": "PJ"
     },
     {
@@ -1605,7 +1701,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9200,
+      "salario": 9200.0,
       "tipo": "PJ"
     },
     {
@@ -1615,7 +1711,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 8374,
+      "salario": 8374.0,
       "tipo": "PJ"
     },
     {
@@ -1625,7 +1721,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE PESQUISA E DESENVOLVIMENTO SENIOR",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 8030,
+      "salario": 8030.0,
       "tipo": "PJ"
     },
     {
@@ -1635,7 +1731,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TI",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -1645,7 +1741,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
+      "salario": 4000.0,
       "tipo": "PJ"
     },
     {
@@ -1655,7 +1751,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
+      "salario": 4000.0,
       "tipo": "PJ"
     },
     {
@@ -1665,7 +1761,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE EXPERIÊNCIA DO CLIENTE",
       "dept": "CX",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -1675,7 +1771,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE DELIVERY",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -1685,19 +1781,8 @@ const BASE_MESES = {
       "funcao": "GERENTE DE DHO",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20000,
+      "salario": 20000.0,
       "tipo": "PJ"
-    },
-    {
-      "id": "033",
-      "cnpj": "CLT_24051771881",
-      "nome": "ALEXANDRE AUGUSTO SANTOS E SOUZA",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220.45,
-      "tipo": "CLT",
-      "admissao": "1970-01"
     },
     {
       "id": "034",
@@ -1706,7 +1791,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CONTROLADORIA SÊNIOR",
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 6500,
+      "salario": 6500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1739,29 +1824,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CANAIS DIGITAIS PLENO",
       "dept": "OPERAÇÕES LOJAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4400,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "038",
-      "cnpj": "CLT_06892856390",
-      "nome": "EDNALDO ESTEVAO BRITO",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3634.28,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "039",
-      "cnpj": "CLT_43221226802",
-      "nome": "EDUARDO LOPES GRIGOLETO",
-      "funcao": "ESTAGIARIO (A)",
-      "dept": "TECNOLOGIA",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1680,
+      "salario": 4400.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1773,17 +1836,6 @@ const BASE_MESES = {
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
       "salario": 2358.65,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "065",
-      "cnpj": "CLT_36870377898",
-      "nome": "FELIPE RECHTMAN ROMERO SIMOES",
-      "funcao": "GERENTE DE LOJA",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4134.7,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1832,24 +1884,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "045",
-      "cnpj": "CLT_50647630850",
-      "nome": "GIOVANNA FATARELLI SCARONI",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "MARKETING",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "046",
       "cnpj": "CLT_57799138890",
       "nome": "HENRIQUE PRADO BOAVENTURA",
       "funcao": "ANALISTA DE SUPPLY CHAIN JR",
       "dept": "COMPRAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3500,
+      "salario": 3500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1887,24 +1928,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "050",
-      "cnpj": "CLT_43869326824",
-      "nome": "MARCO AURELIO BORGES DOS SANTOS",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4151.07,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "051",
       "cnpj": "CLT_50017752809",
       "nome": "MARCUS VINICIUS AFONSO RICINO",
       "funcao": "ANALISTA DE MARKETING PLENO",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1915,7 +1945,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE REMUNERAÇÃO E BENEFÍCIOS PLENO",
       "dept": "DEPARTAMENTO PESSOAL",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1926,7 +1956,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE FRANQUIAS PLENO",
       "dept": "OPERAÇÕES DE FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 4500,
+      "salario": 4500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -1981,7 +2011,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE MIDIAS SOCIAIS JUNIOR",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
+      "salario": 3200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2027,7 +2057,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE EXPANSÃO",
       "dept": "EXPANSÃO",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 17796,
+      "salario": 17796.0,
       "tipo": "PJ"
     },
     {
@@ -2037,7 +2067,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE FRANQUIA",
       "dept": "OPERAÇÕES FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 15500,
+      "salario": 15500.0,
       "tipo": "PJ"
     },
     {
@@ -2047,7 +2077,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13700,
+      "salario": 13700.0,
       "tipo": "PJ"
     },
     {
@@ -2057,7 +2087,7 @@ const BASE_MESES = {
       "funcao": "GERENTE JURIDICO",
       "dept": "JURIDICO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 18767,
+      "salario": 18767.0,
       "tipo": "PJ"
     },
     {
@@ -2067,7 +2097,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20936,
+      "salario": 20936.0,
       "tipo": "PJ"
     },
     {
@@ -2077,7 +2107,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4153,
+      "salario": 4153.0,
       "tipo": "PJ"
     },
     {
@@ -2087,7 +2117,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16724,
+      "salario": 16724.0,
       "tipo": "PJ"
     },
     {
@@ -2097,7 +2127,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE BI & ANALYTICS",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 15702,
+      "salario": 15702.0,
       "tipo": "PJ"
     },
     {
@@ -2107,7 +2137,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE RH",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20500,
+      "salario": 20500.0,
       "tipo": "PJ"
     },
     {
@@ -2117,7 +2147,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPS E QUALIDADE",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 23030,
+      "salario": 23030.0,
       "tipo": "PJ"
     },
     {
@@ -2127,7 +2157,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4153,
+      "salario": 4153.0,
       "tipo": "PJ"
     },
     {
@@ -2137,7 +2167,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12000,
+      "salario": 12000.0,
       "tipo": "PJ"
     },
     {
@@ -2157,7 +2187,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12562,
+      "salario": 12562.0,
       "tipo": "PJ"
     },
     {
@@ -2167,7 +2197,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE LOGÍSTICA",
       "dept": "LOGISTICA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -2177,7 +2207,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE PRODUÇÃO",
       "dept": "PRODUÇÃO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -2187,7 +2217,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE DHO",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9289,
+      "salario": 9289.0,
       "tipo": "PJ"
     },
     {
@@ -2197,7 +2227,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE PESQUISA E DESENVOLVIMENTO SENIOR",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 8030,
+      "salario": 8030.0,
       "tipo": "PJ"
     },
     {
@@ -2207,7 +2237,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13000,
+      "salario": 13000.0,
       "tipo": "PJ"
     },
     {
@@ -2217,7 +2247,7 @@ const BASE_MESES = {
       "funcao": "DIRETOR PRESIDENTE",
       "dept": "DIRETORIA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 75834,
+      "salario": 75834.0,
       "tipo": "PJ"
     },
     {
@@ -2227,7 +2257,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TRADE",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13608,
+      "salario": 13608.0,
       "tipo": "PJ"
     },
     {
@@ -2237,7 +2267,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE SERVIÇO E INFRAESTRUTURA",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16495,
+      "salario": 16495.0,
       "tipo": "PJ"
     },
     {
@@ -2247,7 +2277,7 @@ const BASE_MESES = {
       "funcao": "DIRETORA DE RH",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 41785,
+      "salario": 41785.0,
       "tipo": "PJ"
     },
     {
@@ -2257,7 +2287,7 @@ const BASE_MESES = {
       "funcao": "CFO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 40000,
+      "salario": 40000.0,
       "tipo": "PJ"
     },
     {
@@ -2267,7 +2297,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9200,
+      "salario": 9200.0,
       "tipo": "PJ"
     },
     {
@@ -2277,7 +2307,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE TREINAMENTO",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9500,
+      "salario": 9500.0,
       "tipo": "PJ"
     },
     {
@@ -2287,7 +2317,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE REVENUE",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 19500,
+      "salario": 19500.0,
       "tipo": "PJ"
     },
     {
@@ -2297,7 +2327,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13500,
+      "salario": 13500.0,
       "tipo": "PJ"
     },
     {
@@ -2307,7 +2337,7 @@ const BASE_MESES = {
       "funcao": "GERENTE FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 22000,
+      "salario": 22000.0,
       "tipo": "PJ"
     },
     {
@@ -2317,7 +2347,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TI",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -2327,7 +2357,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE CANAIS DIGITAIS",
       "dept": "CANAIS DIGITAIS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -2337,7 +2367,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE CX",
       "dept": "CX",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -2347,7 +2377,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE DHO",
       "dept": "DHO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20000,
+      "salario": 20000.0,
       "tipo": "PJ"
     },
     {
@@ -2357,7 +2387,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE CONTROLADORIA",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13500,
+      "salario": 13500.0,
       "tipo": "PJ"
     },
     {
@@ -2367,7 +2397,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 5200,
+      "salario": 5200.0,
       "tipo": "PJ"
     },
     {
@@ -2377,19 +2407,8 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4400,
+      "salario": 4400.0,
       "tipo": "PJ"
-    },
-    {
-      "id": "033",
-      "cnpj": "CLT_24051771881",
-      "nome": "ALEXANDRE AUGUSTO SANTOS E SOUZA",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220.45,
-      "tipo": "CLT",
-      "admissao": "1970-01"
     },
     {
       "id": "034",
@@ -2398,7 +2417,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CONTROLADORIA SÊNIOR",
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 6500,
+      "salario": 6500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2431,29 +2450,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CANAIS DIGITAIS PLENO",
       "dept": "OPERAÇÕES LOJAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4400,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "038",
-      "cnpj": "CLT_06892856390",
-      "nome": "EDNALDO ESTEVAO BRITO",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3634.28,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "039",
-      "cnpj": "CLT_43221226802",
-      "nome": "EDUARDO LOPES GRIGOLETO",
-      "funcao": "ESTAGIARIO (A)",
-      "dept": "TECNOLOGIA",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1680,
+      "salario": 4400.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2464,7 +2461,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE TESOURARIA SÊNIOR",
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 6200,
+      "salario": 6200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2524,24 +2521,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "045",
-      "cnpj": "CLT_50647630850",
-      "nome": "GIOVANNA FATARELLI SCARONI",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "MARKETING",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "046",
       "cnpj": "CLT_57799138890",
       "nome": "HENRIQUE PRADO BOAVENTURA",
       "funcao": "ANALISTA DE SUPPLY CHAIN JR",
       "dept": "COMPRAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3500,
+      "salario": 3500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2579,24 +2565,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "050",
-      "cnpj": "CLT_43869326824",
-      "nome": "MARCO AURELIO BORGES DOS SANTOS",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4151.07,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "051",
       "cnpj": "CLT_50017752809",
       "nome": "MARCUS VINICIUS AFONSO RICINO",
       "funcao": "ANALISTA DE MARKETING PLENO",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2607,7 +2582,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE REMUNERAÇÃO E BENEFÍCIOS PLENO",
       "dept": "DEPARTAMENTO PESSOAL",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2618,7 +2593,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE FRANQUIAS PLENO",
       "dept": "OPERAÇÕES DE FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 4500,
+      "salario": 4500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2673,7 +2648,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE MIDIAS SOCIAIS JUNIOR",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
+      "salario": 3200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2695,7 +2670,7 @@ const BASE_MESES = {
       "funcao": "ASSISTENTE DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 2300,
+      "salario": 2300.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -2730,7 +2705,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE EXPANSÃO",
       "dept": "EXPANSÃO",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 17796,
+      "salario": 17796.0,
       "tipo": "PJ"
     },
     {
@@ -2740,7 +2715,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE FRANQUIA",
       "dept": "OPERAÇÕES FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 15500,
+      "salario": 15500.0,
       "tipo": "PJ"
     },
     {
@@ -2750,7 +2725,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13700,
+      "salario": 13700.0,
       "tipo": "PJ"
     },
     {
@@ -2760,7 +2735,7 @@ const BASE_MESES = {
       "funcao": "GERENTE JURIDICO",
       "dept": "JURIDICO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 18767,
+      "salario": 18767.0,
       "tipo": "PJ"
     },
     {
@@ -2770,7 +2745,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20936,
+      "salario": 20936.0,
       "tipo": "PJ"
     },
     {
@@ -2780,7 +2755,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4153,
+      "salario": 4153.0,
       "tipo": "PJ"
     },
     {
@@ -2790,7 +2765,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16724,
+      "salario": 16724.0,
       "tipo": "PJ"
     },
     {
@@ -2800,7 +2775,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPERAÇÕES DE RH",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20500,
+      "salario": 20500.0,
       "tipo": "PJ"
     },
     {
@@ -2810,7 +2785,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE OPS E QUALIDADE",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 23030,
+      "salario": 23030.0,
       "tipo": "PJ"
     },
     {
@@ -2820,7 +2795,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE SUPORTE PLENO",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4153,
+      "salario": 4153.0,
       "tipo": "PJ"
     },
     {
@@ -2830,7 +2805,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE MARKETING",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12000,
+      "salario": 12000.0,
       "tipo": "PJ"
     },
     {
@@ -2840,7 +2815,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12562,
+      "salario": 12562.0,
       "tipo": "PJ"
     },
     {
@@ -2850,7 +2825,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE LOGÍSTICA",
       "dept": "LOGISTICA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -2860,7 +2835,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE PRODUÇÃO",
       "dept": "PRODUÇÃO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20224,
+      "salario": 20224.0,
       "tipo": "PJ"
     },
     {
@@ -2870,7 +2845,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE DHO",
       "dept": "PESSOAS E CULTURA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9289,
+      "salario": 9289.0,
       "tipo": "PJ"
     },
     {
@@ -2880,7 +2855,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE PESQUISA E DESENVOLVIMENTO SENIOR",
       "dept": "PESQUISA E DESENVOLVIMENTO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 8030,
+      "salario": 8030.0,
       "tipo": "PJ"
     },
     {
@@ -2890,7 +2865,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13000,
+      "salario": 13000.0,
       "tipo": "PJ"
     },
     {
@@ -2900,7 +2875,7 @@ const BASE_MESES = {
       "funcao": "DIRETOR PRESIDENTE",
       "dept": "DIRETORIA",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 75834,
+      "salario": 75834.0,
       "tipo": "PJ"
     },
     {
@@ -2910,7 +2885,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TRADE",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13608,
+      "salario": 13608.0,
       "tipo": "PJ"
     },
     {
@@ -2920,7 +2895,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE SERVIÇO E INFRAESTRUTURA",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 16495,
+      "salario": 16495.0,
       "tipo": "PJ"
     },
     {
@@ -2930,7 +2905,7 @@ const BASE_MESES = {
       "funcao": "DIRETORA DE RH",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 41785,
+      "salario": 41785.0,
       "tipo": "PJ"
     },
     {
@@ -2940,7 +2915,7 @@ const BASE_MESES = {
       "funcao": "CFO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 40000,
+      "salario": 40000.0,
       "tipo": "PJ"
     },
     {
@@ -2950,7 +2925,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9200,
+      "salario": 9200.0,
       "tipo": "PJ"
     },
     {
@@ -2960,7 +2935,7 @@ const BASE_MESES = {
       "funcao": "ESPECIALISTA DE TREINAMENTO",
       "dept": "RECURSOS HUMANOS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 9500,
+      "salario": 9500.0,
       "tipo": "PJ"
     },
     {
@@ -2970,7 +2945,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE REVENUE",
       "dept": "BUSINESS INTELIGENCE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 19500,
+      "salario": 19500.0,
       "tipo": "PJ"
     },
     {
@@ -2980,7 +2955,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13500,
+      "salario": 13500.0,
       "tipo": "PJ"
     },
     {
@@ -2990,7 +2965,7 @@ const BASE_MESES = {
       "funcao": "GERENTE FINANCEIRO",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 22000,
+      "salario": 22000.0,
       "tipo": "PJ"
     },
     {
@@ -3000,7 +2975,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE TI",
       "dept": "TI",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -3010,7 +2985,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE CANAIS DIGITAIS",
       "dept": "CANAIS DIGITAIS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -3020,7 +2995,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE CX",
       "dept": "CX",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 10000,
+      "salario": 10000.0,
       "tipo": "PJ"
     },
     {
@@ -3030,7 +3005,7 @@ const BASE_MESES = {
       "funcao": "GERENTE DE DHO",
       "dept": "DHO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 20000,
+      "salario": 20000.0,
       "tipo": "PJ"
     },
     {
@@ -3040,7 +3015,7 @@ const BASE_MESES = {
       "funcao": "COORDENADORA DE CONTROLADORIA",
       "dept": "FINANÇAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 13500,
+      "salario": 13500.0,
       "tipo": "PJ"
     },
     {
@@ -3050,7 +3025,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12000,
+      "salario": 12000.0,
       "tipo": "PJ"
     },
     {
@@ -3060,7 +3035,7 @@ const BASE_MESES = {
       "funcao": "COORDENADOR DE OPERAÇÕES",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 12000,
+      "salario": 12000.0,
       "tipo": "PJ"
     },
     {
@@ -3070,30 +3045,8 @@ const BASE_MESES = {
       "funcao": "GERENTE DE PLANEJAMENTO ESTRATÉGICO",
       "dept": "OPERAÇÕES",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 26000,
+      "salario": 26000.0,
       "tipo": "PJ"
-    },
-    {
-      "id": "033",
-      "cnpj": "CLT_24051771881",
-      "nome": "ALEXANDRE AUGUSTO SANTOS E SOUZA",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220.45,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "072",
-      "cnpj": "CLT_81220820504",
-      "nome": "ALISSON SOARES DE MELO",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
-      "tipo": "CLT",
-      "admissao": "1970-01"
     },
     {
       "id": "034",
@@ -3102,7 +3055,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE CONTROLADORIA SÊNIOR",
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 6500,
+      "salario": 6500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3129,68 +3082,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "073",
-      "cnpj": "CLT_08877961848",
-      "nome": "CARLOS ROBERTO APARECIDO DE ALMEIDA",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "074",
-      "cnpj": "CLT_13580885863",
-      "nome": "CICERO MONTEIRO VIEIRA",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "037",
       "cnpj": "CLT_48552192829",
       "nome": "DAIANY DE ARAUJO RODRIGUES",
       "funcao": "ANALISTA DE CANAIS DIGITAIS PLENO",
       "dept": "OPERAÇÕES LOJAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4400,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "075",
-      "cnpj": "CLT_33691902812",
-      "nome": "DANIEL D'ANGELO DA SILVEIRA",
-      "funcao": "GERENTE DE LOJA",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "038",
-      "cnpj": "CLT_06892856390",
-      "nome": "EDNALDO ESTEVAO BRITO",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3634.28,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "039",
-      "cnpj": "CLT_43221226802",
-      "nome": "EDUARDO LOPES GRIGOLETO",
-      "funcao": "ESTAGIARIO (A)",
-      "dept": "TECNOLOGIA",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1680,
+      "salario": 4400.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3201,7 +3099,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE TESOURARIA SÊNIOR",
       "dept": "FINANCEIRO",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 6200,
+      "salario": 6200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3261,35 +3159,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "045",
-      "cnpj": "CLT_50647630850",
-      "nome": "GIOVANNA FATARELLI SCARONI",
-      "funcao": "JOVEM APRENDIZ",
-      "dept": "MARKETING",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 1220,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "046",
       "cnpj": "CLT_57799138890",
       "nome": "HENRIQUE PRADO BOAVENTURA",
       "funcao": "ANALISTA DE SUPPLY CHAIN JR",
       "dept": "COMPRAS",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3500,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "076",
-      "cnpj": "CLT_11266622756",
-      "nome": "JOAO LUIZ LOPES BARCELLOS",
-      "funcao": "GERENTE DE LOJA",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
+      "salario": 3500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3327,24 +3203,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "050",
-      "cnpj": "CLT_43869326824",
-      "nome": "MARCO AURELIO BORGES DOS SANTOS",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4151.07,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "051",
       "cnpj": "CLT_50017752809",
       "nome": "MARCUS VINICIUS AFONSO RICINO",
       "funcao": "ANALISTA DE MARKETING PLENO",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3355,7 +3220,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE REMUNERAÇÃO E BENEFÍCIOS PLENO",
       "dept": "DEPARTAMENTO PESSOAL",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 4200,
+      "salario": 4200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3366,18 +3231,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE FRANQUIAS PLENO",
       "dept": "OPERAÇÕES DE FRANQUIAS",
       "empresa": "01-CABANA BURGER FRANQUIAS",
-      "salario": 4500,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
-      "id": "077",
-      "cnpj": "CLT_42098083858",
-      "nome": "MICHEL DA COSTA",
-      "funcao": "GERENTE DE LOJA",
-      "dept": "OPERAÇÕES LOJAS",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 4000,
+      "salario": 4500.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3432,7 +3286,7 @@ const BASE_MESES = {
       "funcao": "ANALISTA DE MIDIAS SOCIAIS JUNIOR",
       "dept": "MARKETING",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
+      "salario": 3200.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3448,24 +3302,13 @@ const BASE_MESES = {
       "admissao": "1970-01"
     },
     {
-      "id": "078",
-      "cnpj": "CLT_12949376770",
-      "nome": "RODOLFO BENTO PEDROSA",
-      "funcao": "TECNICO DE MANUTENCAO",
-      "dept": "MANUTENÇÃO E FACILITIES",
-      "empresa": "01-CABANA MATRIZ",
-      "salario": 3200,
-      "tipo": "CLT",
-      "admissao": "1970-01"
-    },
-    {
       "id": "070",
       "cnpj": "CLT_42790010811",
       "nome": "TALITA CARPANI DE ARGOLO",
       "funcao": "ASSISTENTE DE QUALIDADE",
       "dept": "QUALIDADE",
       "empresa": "01-CABANA MATRIZ",
-      "salario": 2300,
+      "salario": 2300.0,
       "tipo": "CLT",
       "admissao": "1970-01"
     },
@@ -3490,6 +3333,1365 @@ const BASE_MESES = {
       "salario": 8362.51,
       "tipo": "CLT",
       "admissao": "1970-01"
+    }
+  ],
+  "2026-05": [
+    {
+      "cnpj": "51711193000120",
+      "nome": "AMC SERVICOS EMPRESARIAIS LTDA",
+      "funcao": "GERENTE DE EXPANSÃO",
+      "dept": "EXPANSÃO",
+      "empresa": "01-CABANA BURGER FRANQUIAS",
+      "salario": 18578.0,
+      "tipo": "PJ",
+      "id": "001"
+    },
+    {
+      "cnpj": "62950259000150",
+      "nome": "L H SPRINGMAN - ACESSORIA EMPRESARIAL",
+      "funcao": "GERENTE DE OPERAÇÕES DE FRANQUIA",
+      "dept": "OPERAÇÕES FRANQUIAS",
+      "empresa": "01-CABANA BURGER FRANQUIAS",
+      "salario": 15500.0,
+      "tipo": "PJ",
+      "id": "002"
+    },
+    {
+      "cnpj": "58570718000101",
+      "nome": "JFS SERVICOS EMPRESARIAIS LTDA",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13700.0,
+      "tipo": "PJ",
+      "id": "003"
+    },
+    {
+      "cnpj": "49321536000106",
+      "nome": "MADALENA MEDEIROS SOCIEDADE INDIVIDUAL DE ADVOCACIA",
+      "funcao": "GERENTE JURIDICO",
+      "dept": "JURIDICO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 18767.0,
+      "tipo": "PJ",
+      "id": "004"
+    },
+    {
+      "cnpj": "57526936000178",
+      "nome": "AIRES GESTAO DE NEGOCIOS LTDA",
+      "funcao": "GERENTE DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20936.0,
+      "tipo": "PJ",
+      "id": "005"
+    },
+    {
+      "cnpj": "59978043000199",
+      "nome": "ALLAN PATRICK PEREIRA QUINAJO",
+      "funcao": "ANALISTA DE SUPORTE PLENO",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4153.0,
+      "tipo": "PJ",
+      "id": "006"
+    },
+    {
+      "cnpj": "51158261000175",
+      "nome": "MARIA BEATRIZ ASSARITO VIEIRA",
+      "funcao": "GERENTE DE MARKETING",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20068.8,
+      "tipo": "PJ",
+      "id": "007"
+    },
+    {
+      "cnpj": "37487148000102",
+      "nome": "EDUARDO CESAR CURTI",
+      "funcao": "GERENTE DE OPERAÇÕES DE RH",
+      "dept": "PESSOAS E CULTURA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20500.0,
+      "tipo": "PJ",
+      "id": "009"
+    },
+    {
+      "cnpj": "49534393000102",
+      "nome": "FC ALIMENTOS E SERVIÇOS LTDA",
+      "funcao": "GERENTE DE OPS E QUALIDADE",
+      "dept": "PESQUISA E DESENVOLVIMENTO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 23030.0,
+      "tipo": "PJ",
+      "id": "010"
+    },
+    {
+      "cnpj": "59961298000149",
+      "nome": "GABRIEL HENRIQUE AGUIAR VIERIA",
+      "funcao": "ANALISTA DE SUPORTE PLENO",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4153.0,
+      "tipo": "PJ",
+      "id": "011"
+    },
+    {
+      "cnpj": "60512784000169",
+      "nome": "60.512.784 LEONARDO SOARES XIMENES DE ARAGAO",
+      "funcao": "COORDENADORA DE MARKETING",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12527.0,
+      "tipo": "PJ",
+      "id": "013"
+    },
+    {
+      "cnpj": "50723040000130",
+      "nome": "MARIANA DAL BELO VENANCIO ME",
+      "funcao": "COORDENADORA DE QUALIDADE",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12562.0,
+      "tipo": "PJ",
+      "id": "015"
+    },
+    {
+      "cnpj": "50399693000105",
+      "nome": "MATHEUS SOUSA TEORO APOIO ADMINISTRATIVO LTDA",
+      "funcao": "GERENTE DE LOGÍSTICA",
+      "dept": "LOGISTICA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20224.0,
+      "tipo": "PJ",
+      "id": "016"
+    },
+    {
+      "cnpj": "50533623000106",
+      "nome": "MSERNAGLIA APOIO ADMINISTRATIVO LTDA",
+      "funcao": "GERENTE DE PRODUÇÃO",
+      "dept": "PRODUÇÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20224.0,
+      "tipo": "PJ",
+      "id": "017"
+    },
+    {
+      "cnpj": "50147709000192",
+      "nome": "NF CAMARA TREINAMENTOS LTDA",
+      "funcao": "ESPECIALISTA DE DHO",
+      "dept": "PESSOAS E CULTURA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 9289.0,
+      "tipo": "PJ",
+      "id": "018"
+    },
+    {
+      "cnpj": "51381381000137",
+      "nome": "PRC PRESTAO DE SERVICOS LTDA",
+      "funcao": "ANALISTA DE PESQUISA E DESENVOLVIMENTO SENIOR",
+      "dept": "PESQUISA E DESENVOLVIMENTO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 8030.0,
+      "tipo": "PJ",
+      "id": "019"
+    },
+    {
+      "cnpj": "50722509000116",
+      "nome": "R.M. NEVES SOLUCOES ADMINISTRATIVAS MR",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13000.0,
+      "tipo": "PJ",
+      "id": "020"
+    },
+    {
+      "cnpj": "56690012000140",
+      "nome": "RAZEVEDO GESTAO E PLANEJAMENTO EMPRESARIAL LTDA",
+      "funcao": "DIRETOR PRESIDENTE",
+      "dept": "DIRETORIA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 75834.0,
+      "tipo": "PJ",
+      "id": "021"
+    },
+    {
+      "cnpj": "55659410000130",
+      "nome": "RP SERVICOS DE ESCRITORIO E MARKETING LTDA",
+      "funcao": "COORDENADOR DE TRADE",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13608.0,
+      "tipo": "PJ",
+      "id": "022"
+    },
+    {
+      "cnpj": "24030362000193",
+      "nome": "SHI LEUNG TSUI",
+      "funcao": "GERENTE DE SERVIÇO E INFRAESTRUTURA",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 16495.0,
+      "tipo": "PJ",
+      "id": "023"
+    },
+    {
+      "cnpj": "58357000000123",
+      "nome": "TAMARA DUARTE DESENVOLVIMENTO HUMANO E ORGANIZACIONAL LTDA",
+      "funcao": "DIRETORA DE RH",
+      "dept": "RECURSOS HUMANOS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 41785.0,
+      "tipo": "PJ",
+      "id": "024"
+    },
+    {
+      "cnpj": "60849047000156",
+      "nome": "VP FINANCIAL ADM SERVICES LTDA",
+      "funcao": "CFO",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 40000.0,
+      "tipo": "PJ",
+      "id": "025"
+    },
+    {
+      "cnpj": "64075049000196",
+      "nome": "PAOLA DENIS PALACIOS 40687575850",
+      "funcao": "ESPECIALISTA DE QUALIDADE",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 9200.0,
+      "tipo": "PJ",
+      "id": "027"
+    },
+    {
+      "cnpj": "61067454000174",
+      "nome": "MARIA REININGER",
+      "funcao": "ESPECIALISTA DE TREINAMENTO",
+      "dept": "RECURSOS HUMANOS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 9500.0,
+      "tipo": "PJ",
+      "id": "028"
+    },
+    {
+      "cnpj": "63182762000176",
+      "nome": "RODRIGO MUZETTI MIELDAZIS LTDA",
+      "funcao": "GERENTE DE REVENUE",
+      "dept": "BUSINESS INTELIGENCE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 19500.0,
+      "tipo": "PJ",
+      "id": "029"
+    },
+    {
+      "cnpj": "63337534000128",
+      "nome": "ELOA CRISTINA GARONI SERVICOS ADMINISTRATIVOS LTDA",
+      "funcao": "COORDENADOR FINANCEIRO",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13500.0,
+      "tipo": "PJ",
+      "id": "030"
+    },
+    {
+      "cnpj": "64129545000185",
+      "nome": "FFSMO LTDA",
+      "funcao": "GERENTE FINANCEIRO",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 22000.0,
+      "tipo": "PJ",
+      "id": "031"
+    },
+    {
+      "cnpj": "28561376000194",
+      "nome": "MISAQUE MIGUEL DE OLIVEIRA JUNIOR",
+      "funcao": "COORDENADOR DE TI",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 10000.0,
+      "tipo": "PJ",
+      "id": "032"
+    },
+    {
+      "cnpj": "65230448000147",
+      "nome": "AS CONSULTORIA LTDA - AQUIZA",
+      "funcao": "COORDENADOR DE CANAIS DIGITAIS",
+      "dept": "CANAIS DIGITAIS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 10000.0,
+      "tipo": "PJ",
+      "id": "063"
+    },
+    {
+      "cnpj": "64779635000111",
+      "nome": "RENATA MORAES SILVA",
+      "funcao": "COORDENADOR DE CX",
+      "dept": "CX",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 10000.0,
+      "tipo": "PJ",
+      "id": "062"
+    },
+    {
+      "cnpj": "65019669000170",
+      "nome": "SILVANA NOVAIS MANSUR XAVIER LTDA",
+      "funcao": "GERENTE DE DHO",
+      "dept": "DHO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20000.0,
+      "tipo": "PJ",
+      "id": "064"
+    },
+    {
+      "cnpj": "47913673000104",
+      "nome": "MONIQUE ROCHA FELICONIO 35422170857",
+      "funcao": "COORDENADORA DE CONTROLADORIA",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13500.0,
+      "tipo": "PJ",
+      "id": "066"
+    },
+    {
+      "cnpj": "65623828000141",
+      "nome": "GUSTAVO FREDERICO SERVICOS ADMINISTRATIVOS LTDA",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12000.0,
+      "tipo": "PJ",
+      "id": "067"
+    },
+    {
+      "cnpj": "65479042000100",
+      "nome": "RAFAEL LEANDRO DIAS",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12000.0,
+      "tipo": "PJ",
+      "id": "068"
+    },
+    {
+      "cnpj": "66524559000129",
+      "nome": "LUCAS TOLLER MARINI DA SILVA",
+      "funcao": "GERENTE DE PLANEJAMENTO ESTRATÉGICO",
+      "dept": "NAN",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 26000.0,
+      "tipo": "PJ",
+      "id": "079"
+    },
+    {
+      "cnpj": "66286562000151",
+      "nome": "HENRIQUE GARCIA AFFONSO",
+      "funcao": "CONSULTOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 8000.0,
+      "tipo": "PJ",
+      "id": "080"
+    },
+    {
+      "cnpj": "47772813000163",
+      "nome": "REGINALDO D ELBOUX LOURENCO",
+      "funcao": "COORDENADOR DE COMPRAS",
+      "dept": "COMPRAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 15000.0,
+      "tipo": "PJ",
+      "id": "081"
+    },
+    {
+      "cnpj": "CLT_41731169850",
+      "nome": "AMANDA VIEIRA DA COSTA",
+      "funcao": "ANALISTA DE CONTROLADORIA SÊNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 6500.0,
+      "admissao": "2025-09",
+      "tipo": "CLT",
+      "id": "034"
+    },
+    {
+      "cnpj": "CLT_46809421858",
+      "nome": "BRENO DE ALMEIDA AMARAL LEMOS",
+      "funcao": "TRAINEE DE OPERAÇÕES",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 1706.7,
+      "admissao": "2024-04",
+      "tipo": "CLT",
+      "id": "035"
+    },
+    {
+      "cnpj": "CLT_37077055876",
+      "nome": "CARINA ARAUJO FERREIRA",
+      "funcao": "ANALISTA DE EXPERIENCIA DO CONSUMIDOR JUNIOR",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3131.62,
+      "admissao": "2025-06",
+      "tipo": "CLT",
+      "id": "036"
+    },
+    {
+      "cnpj": "CLT_48552192829",
+      "nome": "DAIANY DE ARAUJO RODRIGUES",
+      "funcao": "ANALISTA DE CANAIS DIGITAIS PLENO",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4400.0,
+      "admissao": "2026-01",
+      "tipo": "CLT",
+      "id": "037"
+    },
+    {
+      "cnpj": "CLT_30752285831",
+      "nome": "ENEDINA VIRGILIO ARAUJO",
+      "funcao": "ANALISTA DE TESOURARIA SÊNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 6200.0,
+      "admissao": "2026-03",
+      "tipo": "CLT",
+      "id": "069"
+    },
+    {
+      "cnpj": "CLT_47076085828",
+      "nome": "FABIANA DO NASCIMENTO PINTO",
+      "funcao": "ASSISTENTE FINANCEIRO",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 2358.65,
+      "admissao": "2025-03",
+      "tipo": "CLT",
+      "id": "040"
+    },
+    {
+      "cnpj": "CLT_31341301818",
+      "nome": "FLAVIA DE SANTANA COELHO SANTOS",
+      "funcao": "ANALISTA DE CONTAS A RECEBER PLENO",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4009.85,
+      "admissao": "2018-02",
+      "tipo": "CLT",
+      "id": "041"
+    },
+    {
+      "cnpj": "CLT_43992472825",
+      "nome": "GABRIEL MENDES RIBEIRO",
+      "funcao": "ANALISTA SUPPLY CHAIN PL",
+      "dept": "COMPRAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4148.57,
+      "admissao": "2025-02",
+      "tipo": "CLT",
+      "id": "042"
+    },
+    {
+      "cnpj": "CLT_50136995845",
+      "nome": "GABRIELLE CAROLINE SANCHES DE OLIVEIRA",
+      "funcao": "ANALISTA DE RECRUTAMENTO E SELECAO PLENO",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4604.4,
+      "admissao": "2024-10",
+      "tipo": "CLT",
+      "id": "043"
+    },
+    {
+      "cnpj": "CLT_57799138890",
+      "nome": "HENRIQUE PRADO BOAVENTURA",
+      "funcao": "ANALISTA DE SUPPLY CHAIN JR",
+      "dept": "COMPRAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3500.0,
+      "admissao": "2026-01",
+      "tipo": "CLT",
+      "id": "046"
+    },
+    {
+      "cnpj": "CLT_4866233354",
+      "nome": "JOAO LENON DE SOUSA VARELA",
+      "funcao": "COORDENADOR DE ALIMENTOS E BEBIDAS TREINADOR",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 5401.57,
+      "admissao": "2019-01",
+      "tipo": "CLT",
+      "id": "086"
+    },
+    {
+      "cnpj": "CLT_11266622756",
+      "nome": "JOAO LUIZ LOPES BARCELLOS",
+      "funcao": "GERENTE DE LOJA",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4000.0,
+      "admissao": "2026-04",
+      "tipo": "CLT",
+      "id": "076"
+    },
+    {
+      "cnpj": "CLT_51550655850",
+      "nome": "JULIA LEMES FOGAÇA",
+      "funcao": "ANALISTA DE RH JUNIOR",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3107.4,
+      "admissao": "2025-02",
+      "tipo": "CLT",
+      "id": "047"
+    },
+    {
+      "cnpj": "CLT_22798598826",
+      "nome": "KATIA DOS SANTOS BRAGA",
+      "funcao": "ANALISTA FISCAL JUNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3411.35,
+      "admissao": "2024-02",
+      "tipo": "CLT",
+      "id": "048"
+    },
+    {
+      "cnpj": "CLT_23030751813",
+      "nome": "KETTELYN CRISTINA ENBEL COSTA",
+      "funcao": "ASSISTENTE DE SUPORTE TÉCNICO",
+      "dept": "TECNOLOGIA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 2040.8,
+      "admissao": "2025-04",
+      "tipo": "CLT",
+      "id": "049"
+    },
+    {
+      "cnpj": "CLT_50017752809",
+      "nome": "MARCUS VINICIUS AFONSO RICINO",
+      "funcao": "ANALISTA DE MARKETING PLENO",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4200.0,
+      "admissao": "2025-11",
+      "tipo": "CLT",
+      "id": "051"
+    },
+    {
+      "cnpj": "CLT_51956940871",
+      "nome": "MATHEUS HENRIQUE BOSSO",
+      "funcao": "ANALISTA DE REMUNERAÇÃO E BENEFÍCIOS PLENO",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4200.0,
+      "admissao": "2025-10",
+      "tipo": "CLT",
+      "id": "052"
+    },
+    {
+      "cnpj": "CLT_42159445894",
+      "nome": "MAYARA NEUMA DO NASCIMENTO",
+      "funcao": "ANALISTA DE FRANQUIAS PLENO",
+      "dept": "OPERAÇÕES DE FRANQUIAS",
+      "empresa": "01-CABANA BURGER FRANQUIAS",
+      "salario": 4500.0,
+      "admissao": "2025-08",
+      "tipo": "CLT",
+      "id": "053"
+    },
+    {
+      "cnpj": "CLT_12759043940",
+      "nome": "MICHEL DA SILVA FARIAS",
+      "funcao": "ANALISTA DE CONTAS A PAGAR JUNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3468.63,
+      "admissao": "2024-10",
+      "tipo": "CLT",
+      "id": "054"
+    },
+    {
+      "cnpj": "CLT_45897114862",
+      "nome": "NATHALIA LOURENCO LEDO",
+      "funcao": "ANALISTA DE EXPERIENCIA DO CONSUMIDOR JUNIOR",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3224.34,
+      "admissao": "2024-05",
+      "tipo": "CLT",
+      "id": "055"
+    },
+    {
+      "cnpj": "CLT_39172851856",
+      "nome": "NAYURI ALEXANDRINA ROCHA",
+      "funcao": "ANALISTA DE RECURSOS HUMANOS PLENO",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4000.0,
+      "admissao": "2026-05",
+      "tipo": "CLT",
+      "id": "087"
+    },
+    {
+      "cnpj": "CLT_32083671805",
+      "nome": "PATRICIA FERREIRA DE OLIVEIRA",
+      "funcao": "ANALISTA DE DEPARTAMENTO PESSOAL PLENO",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4414.62,
+      "admissao": "2024-10",
+      "tipo": "CLT",
+      "id": "056"
+    },
+    {
+      "cnpj": "CLT_36304768800",
+      "nome": "RAFAEL FELIPE ELIEZER DA SILVA",
+      "funcao": "ANALISTA DE TREINAMENTO PLENO",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 5563.1,
+      "admissao": "2018-01",
+      "tipo": "CLT",
+      "id": "057"
+    },
+    {
+      "cnpj": "CLT_33757434838",
+      "nome": "RAFAEL SENRA GATTO",
+      "funcao": "ANALISTA DE MIDIAS SOCIAIS JUNIOR",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3200.0,
+      "admissao": "2025-12",
+      "tipo": "CLT",
+      "id": "058"
+    },
+    {
+      "cnpj": "CLT_36879024807",
+      "nome": "ROBERTA ASSUMPÇÃO MARCASSA",
+      "funcao": "ANALISTA DE QUALIDADE PLENO",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4638.15,
+      "admissao": "2025-02",
+      "tipo": "CLT",
+      "id": "059"
+    },
+    {
+      "cnpj": "CLT_42790010811",
+      "nome": "TALITA CARPANI DE ARGOLO",
+      "funcao": "ASSISTENTE DE QUALIDADE",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 2300.0,
+      "admissao": "2026-03",
+      "tipo": "CLT",
+      "id": "070"
+    },
+    {
+      "cnpj": "CLT_47090248801",
+      "nome": "THAMIRES ANDRADE LOPES REIS",
+      "funcao": "ANALISTA DE OPERACOES DE RH JUNIOR",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3107.4,
+      "admissao": "2025-01",
+      "tipo": "CLT",
+      "id": "060"
+    },
+    {
+      "cnpj": "CLT_34413701801",
+      "nome": "WILLIAM RIBEIRO SOUZA",
+      "funcao": "COORDENADOR DE MANUTENCAO",
+      "dept": "MANUTENÇÃO E FACILITIES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 8362.51,
+      "admissao": "2023-08",
+      "tipo": "CLT",
+      "id": "061"
+    }
+  ],
+  "2026-06": [
+    {
+      "cnpj": "51711193000120",
+      "nome": "AMC SERVICOS EMPRESARIAIS LTDA",
+      "funcao": "GERENTE DE EXPANSÃO",
+      "dept": "EXPANSÃO",
+      "empresa": "01-CABANA BURGER FRANQUIAS",
+      "salario": 18578.0,
+      "tipo": "PJ",
+      "id": "001"
+    },
+    {
+      "cnpj": "62950259000150",
+      "nome": "L H SPRINGMAN - ACESSORIA EMPRESARIAL",
+      "funcao": "GERENTE DE OPERAÇÕES DE FRANQUIA",
+      "dept": "OPERAÇÕES FRANQUIAS",
+      "empresa": "01-CABANA BURGER FRANQUIAS",
+      "salario": 15500.0,
+      "tipo": "PJ",
+      "id": "002"
+    },
+    {
+      "cnpj": "58570718000101",
+      "nome": "JFS SERVICOS EMPRESARIAIS LTDA",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13700.0,
+      "tipo": "PJ",
+      "id": "003"
+    },
+    {
+      "cnpj": "49321536000106",
+      "nome": "MADALENA MEDEIROS SOCIEDADE INDIVIDUAL DE ADVOCACIA",
+      "funcao": "GERENTE JURIDICO",
+      "dept": "JURIDICO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 18767.0,
+      "tipo": "PJ",
+      "id": "004"
+    },
+    {
+      "cnpj": "57526936000178",
+      "nome": "AIRES GESTAO DE NEGOCIOS LTDA",
+      "funcao": "GERENTE DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20936.0,
+      "tipo": "PJ",
+      "id": "005"
+    },
+    {
+      "cnpj": "59978043000199",
+      "nome": "ALLAN PATRICK PEREIRA QUINAJO",
+      "funcao": "ANALISTA DE SUPORTE PLENO",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4153.0,
+      "tipo": "PJ",
+      "id": "006"
+    },
+    {
+      "cnpj": "51158261000175",
+      "nome": "MARIA BEATRIZ ASSARITO VIEIRA",
+      "funcao": "GERENTE DE MARKETING",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20068.8,
+      "tipo": "PJ",
+      "id": "007"
+    },
+    {
+      "cnpj": "37487148000102",
+      "nome": "EDUARDO CESAR CURTI",
+      "funcao": "GERENTE DE OPERAÇÕES DE RH",
+      "dept": "PESSOAS E CULTURA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 21469.0,
+      "tipo": "PJ",
+      "id": "009"
+    },
+    {
+      "cnpj": "49534393000102",
+      "nome": "FC ALIMENTOS E SERVIÇOS LTDA",
+      "funcao": "GERENTE DE OPS E QUALIDADE",
+      "dept": "PESQUISA E DESENVOLVIMENTO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 23030.0,
+      "tipo": "PJ",
+      "id": "010"
+    },
+    {
+      "cnpj": "59961298000149",
+      "nome": "GABRIEL HENRIQUE AGUIAR VIERIA",
+      "funcao": "ANALISTA DE SUPORTE PLENO",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4153.0,
+      "tipo": "PJ",
+      "id": "011"
+    },
+    {
+      "cnpj": "60512784000169",
+      "nome": "60.512.784 LEONARDO SOARES XIMENES DE ARAGAO",
+      "funcao": "COORDENADORA DE MARKETING",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12527.0,
+      "tipo": "PJ",
+      "id": "013"
+    },
+    {
+      "cnpj": "50723040000130",
+      "nome": "MARIANA DAL BELO VENANCIO ME",
+      "funcao": "COORDENADORA DE QUALIDADE",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13156.0,
+      "tipo": "PJ",
+      "id": "015"
+    },
+    {
+      "cnpj": "50399693000105",
+      "nome": "MATHEUS SOUSA TEORO APOIO ADMINISTRATIVO LTDA",
+      "funcao": "GERENTE DE LOGÍSTICA",
+      "dept": "LOGISTICA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20224.0,
+      "tipo": "PJ",
+      "id": "016"
+    },
+    {
+      "cnpj": "50533623000106",
+      "nome": "MSERNAGLIA APOIO ADMINISTRATIVO LTDA",
+      "funcao": "GERENTE DE PRODUÇÃO",
+      "dept": "PRODUÇÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20224.0,
+      "tipo": "PJ",
+      "id": "017"
+    },
+    {
+      "cnpj": "50147709000192",
+      "nome": "NF CAMARA TREINAMENTOS LTDA",
+      "funcao": "ESPECIALISTA DE DHO",
+      "dept": "PESSOAS E CULTURA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 9289.0,
+      "tipo": "PJ",
+      "id": "018"
+    },
+    {
+      "cnpj": "51381381000137",
+      "nome": "PRC PRESTAO DE SERVICOS LTDA",
+      "funcao": "ANALISTA DE PESQUISA E DESENVOLVIMENTO SENIOR",
+      "dept": "PESQUISA E DESENVOLVIMENTO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 8030.0,
+      "tipo": "PJ",
+      "id": "019"
+    },
+    {
+      "cnpj": "50722509000116",
+      "nome": "R.M. NEVES SOLUCOES ADMINISTRATIVAS MR",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13000.0,
+      "tipo": "PJ",
+      "id": "020"
+    },
+    {
+      "cnpj": "56690012000140",
+      "nome": "RAZEVEDO GESTAO E PLANEJAMENTO EMPRESARIAL LTDA",
+      "funcao": "DIRETOR PRESIDENTE",
+      "dept": "DIRETORIA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 75834.0,
+      "tipo": "PJ",
+      "id": "021"
+    },
+    {
+      "cnpj": "55659410000130",
+      "nome": "RP SERVICOS DE ESCRITORIO E MARKETING LTDA",
+      "funcao": "COORDENADOR DE TRADE",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13608.0,
+      "tipo": "PJ",
+      "id": "022"
+    },
+    {
+      "cnpj": "24030362000193",
+      "nome": "SHI LEUNG TSUI",
+      "funcao": "GERENTE DE SERVIÇO E INFRAESTRUTURA",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 16495.0,
+      "tipo": "PJ",
+      "id": "023"
+    },
+    {
+      "cnpj": "58357000000123",
+      "nome": "TAMARA DUARTE DESENVOLVIMENTO HUMANO E ORGANIZACIONAL LTDA",
+      "funcao": "DIRETORA DE RH",
+      "dept": "RECURSOS HUMANOS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 41785.0,
+      "tipo": "PJ",
+      "id": "024"
+    },
+    {
+      "cnpj": "60849047000156",
+      "nome": "VP FINANCIAL ADM SERVICES LTDA",
+      "funcao": "CFO",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 41890.0,
+      "tipo": "PJ",
+      "id": "025"
+    },
+    {
+      "cnpj": "64075049000196",
+      "nome": "PAOLA DENIS PALACIOS 40687575850",
+      "funcao": "ESPECIALISTA DE QUALIDADE",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 9200.0,
+      "tipo": "PJ",
+      "id": "027"
+    },
+    {
+      "cnpj": "61067454000174",
+      "nome": "MARIA REININGER",
+      "funcao": "ESPECIALISTA DE TREINAMENTO",
+      "dept": "RECURSOS HUMANOS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 9500.0,
+      "tipo": "PJ",
+      "id": "028"
+    },
+    {
+      "cnpj": "63182762000176",
+      "nome": "RODRIGO MUZETTI MIELDAZIS LTDA",
+      "funcao": "GERENTE DE REVENUE",
+      "dept": "BUSINESS INTELIGENCE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 19500.0,
+      "tipo": "PJ",
+      "id": "029"
+    },
+    {
+      "cnpj": "63337534000128",
+      "nome": "ELOA CRISTINA GARONI SERVICOS ADMINISTRATIVOS LTDA",
+      "funcao": "COORDENADOR FINANCEIRO",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13500.0,
+      "tipo": "PJ",
+      "id": "030"
+    },
+    {
+      "cnpj": "64129545000185",
+      "nome": "FFSMO LTDA",
+      "funcao": "GERENTE FINANCEIRO",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 22000.0,
+      "tipo": "PJ",
+      "id": "031"
+    },
+    {
+      "cnpj": "28561376000194",
+      "nome": "MISAQUE MIGUEL DE OLIVEIRA JUNIOR",
+      "funcao": "COORDENADOR DE TI",
+      "dept": "TI",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 10000.0,
+      "tipo": "PJ",
+      "id": "032"
+    },
+    {
+      "cnpj": "65230448000147",
+      "nome": "AS CONSULTORIA LTDA - AQUIZA",
+      "funcao": "COORDENADOR DE CANAIS DIGITAIS",
+      "dept": "CANAIS DIGITAIS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 10000.0,
+      "tipo": "PJ",
+      "id": "063"
+    },
+    {
+      "cnpj": "64779635000111",
+      "nome": "RENATA MORAES SILVA",
+      "funcao": "COORDENADOR DE CX",
+      "dept": "CX",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 10000.0,
+      "tipo": "PJ",
+      "id": "062"
+    },
+    {
+      "cnpj": "65019669000170",
+      "nome": "SILVANA NOVAIS MANSUR XAVIER LTDA",
+      "funcao": "GERENTE DE DHO",
+      "dept": "DHO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 20000.0,
+      "tipo": "PJ",
+      "id": "064"
+    },
+    {
+      "cnpj": "47913673000104",
+      "nome": "MONIQUE ROCHA FELICONIO 35422170857",
+      "funcao": "COORDENADORA DE CONTROLADORIA",
+      "dept": "FINANÇAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 13500.0,
+      "tipo": "PJ",
+      "id": "066"
+    },
+    {
+      "cnpj": "65623828000141",
+      "nome": "GUSTAVO FREDERICO SERVICOS ADMINISTRATIVOS LTDA",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12000.0,
+      "tipo": "PJ",
+      "id": "067"
+    },
+    {
+      "cnpj": "65479042000100",
+      "nome": "RAFAEL LEANDRO DIAS",
+      "funcao": "COORDENADOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 12000.0,
+      "tipo": "PJ",
+      "id": "068"
+    },
+    {
+      "cnpj": "66524559000129",
+      "nome": "LUCAS TOLLER MARINI DA SILVA",
+      "funcao": "GERENTE DE PLANEJAMENTO ESTRATÉGICO",
+      "dept": "NAN",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 26000.0,
+      "tipo": "PJ",
+      "id": "079"
+    },
+    {
+      "cnpj": "66286562000151",
+      "nome": "HENRIQUE GARCIA AFFONSO",
+      "funcao": "CONSULTOR DE OPERAÇÕES",
+      "dept": "OPERAÇÕES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 8000.0,
+      "tipo": "PJ",
+      "id": "080"
+    },
+    {
+      "cnpj": "47772813000163",
+      "nome": "REGINALDO D ELBOUX LOURENCO",
+      "funcao": "COORDENADOR DE COMPRAS",
+      "dept": "COMPRAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 15000.0,
+      "tipo": "PJ",
+      "id": "081"
+    },
+    {
+      "cnpj": "28921836000148",
+      "nome": "RODRIGO ANDRADE MATHEUS",
+      "funcao": "DIRETOR INDUSTRIAL",
+      "dept": "FÁBRICA",
+      "empresa": "09-CABANA MOEMA",
+      "salario": 40000.0,
+      "tipo": "PJ",
+      "id": "088"
+    },
+    {
+      "cnpj": "CLT_41731169850",
+      "nome": "AMANDA VIEIRA DA COSTA",
+      "funcao": "ANALISTA DE CONTROLADORIA SÊNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 6500.0,
+      "admissao": "2025-09",
+      "tipo": "CLT",
+      "id": "034"
+    },
+    {
+      "cnpj": "CLT_46809421858",
+      "nome": "BRENO DE ALMEIDA AMARAL LEMOS",
+      "funcao": "TRAINEE DE OPERAÇÕES",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 1706.7,
+      "admissao": "2024-04",
+      "tipo": "CLT",
+      "id": "035"
+    },
+    {
+      "cnpj": "CLT_37077055876",
+      "nome": "CARINA ARAUJO FERREIRA",
+      "funcao": "ANALISTA DE EXPERIENCIA DO CONSUMIDOR JUNIOR",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3131.62,
+      "admissao": "2025-06",
+      "tipo": "CLT",
+      "id": "036"
+    },
+    {
+      "cnpj": "CLT_48552192829",
+      "nome": "DAIANY DE ARAUJO RODRIGUES",
+      "funcao": "ANALISTA DE CANAIS DIGITAIS PLENO",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4400.0,
+      "admissao": "2026-01",
+      "tipo": "CLT",
+      "id": "037"
+    },
+    {
+      "cnpj": "CLT_30752285831",
+      "nome": "ENEDINA VIRGILIO ARAUJO",
+      "funcao": "ANALISTA DE TESOURARIA SÊNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 6200.0,
+      "admissao": "2026-03",
+      "tipo": "CLT",
+      "id": "069"
+    },
+    {
+      "cnpj": "CLT_47076085828",
+      "nome": "FABIANA DO NASCIMENTO PINTO",
+      "funcao": "ASSISTENTE FINANCEIRO",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 2358.65,
+      "admissao": "2025-03",
+      "tipo": "CLT",
+      "id": "040"
+    },
+    {
+      "cnpj": "CLT_31341301818",
+      "nome": "FLAVIA DE SANTANA COELHO SANTOS",
+      "funcao": "ANALISTA DE CONTAS A RECEBER PLENO",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4009.85,
+      "admissao": "2018-02",
+      "tipo": "CLT",
+      "id": "041"
+    },
+    {
+      "cnpj": "CLT_43992472825",
+      "nome": "GABRIEL MENDES RIBEIRO",
+      "funcao": "ANALISTA SUPPLY CHAIN PL",
+      "dept": "COMPRAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4148.57,
+      "admissao": "2025-02",
+      "tipo": "CLT",
+      "id": "042"
+    },
+    {
+      "cnpj": "CLT_50136995845",
+      "nome": "GABRIELLE CAROLINE SANCHES DE OLIVEIRA",
+      "funcao": "ANALISTA DE RECRUTAMENTO E SELECAO PLENO",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4604.4,
+      "admissao": "2024-10",
+      "tipo": "CLT",
+      "id": "043"
+    },
+    {
+      "cnpj": "CLT_57799138890",
+      "nome": "HENRIQUE PRADO BOAVENTURA",
+      "funcao": "ANALISTA DE SUPPLY CHAIN JR",
+      "dept": "COMPRAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3500.0,
+      "admissao": "2026-01",
+      "tipo": "CLT",
+      "id": "046"
+    },
+    {
+      "cnpj": "CLT_4866233354",
+      "nome": "JOAO LENON DE SOUSA VARELA",
+      "funcao": "COORDENADOR DE ALIMENTOS E BEBIDAS TREINADOR",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 5401.57,
+      "admissao": "2019-01",
+      "tipo": "CLT",
+      "id": "086"
+    },
+    {
+      "cnpj": "CLT_51550655850",
+      "nome": "JULIA LEMES FOGAÇA",
+      "funcao": "ANALISTA DE RH JUNIOR",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3107.4,
+      "admissao": "2025-02",
+      "tipo": "CLT",
+      "id": "047"
+    },
+    {
+      "cnpj": "CLT_22798598826",
+      "nome": "KATIA DOS SANTOS BRAGA",
+      "funcao": "ANALISTA FISCAL JUNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3411.35,
+      "admissao": "2024-02",
+      "tipo": "CLT",
+      "id": "048"
+    },
+    {
+      "cnpj": "CLT_23030751813",
+      "nome": "KETTELYN CRISTINA ENBEL COSTA",
+      "funcao": "ASSISTENTE DE SUPORTE TÉCNICO",
+      "dept": "TECNOLOGIA",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 2040.8,
+      "admissao": "2025-04",
+      "tipo": "CLT",
+      "id": "049"
+    },
+    {
+      "cnpj": "CLT_50017752809",
+      "nome": "MARCUS VINICIUS AFONSO RICINO",
+      "funcao": "ANALISTA DE MARKETING PLENO",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4200.0,
+      "admissao": "2025-11",
+      "tipo": "CLT",
+      "id": "051"
+    },
+    {
+      "cnpj": "CLT_51956940871",
+      "nome": "MATHEUS HENRIQUE BOSSO",
+      "funcao": "ANALISTA DE REMUNERAÇÃO E BENEFÍCIOS PLENO",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4200.0,
+      "admissao": "2025-10",
+      "tipo": "CLT",
+      "id": "052"
+    },
+    {
+      "cnpj": "CLT_42159445894",
+      "nome": "MAYARA NEUMA DO NASCIMENTO",
+      "funcao": "ANALISTA DE FRANQUIAS PLENO",
+      "dept": "OPERAÇÕES DE FRANQUIAS",
+      "empresa": "01-CABANA BURGER FRANQUIAS",
+      "salario": 4500.0,
+      "admissao": "2025-08",
+      "tipo": "CLT",
+      "id": "053"
+    },
+    {
+      "cnpj": "CLT_12759043940",
+      "nome": "MICHEL DA SILVA FARIAS",
+      "funcao": "ANALISTA DE CONTAS A PAGAR JUNIOR",
+      "dept": "FINANCEIRO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3468.63,
+      "admissao": "2024-10",
+      "tipo": "CLT",
+      "id": "054"
+    },
+    {
+      "cnpj": "CLT_45897114862",
+      "nome": "NATHALIA LOURENCO LEDO",
+      "funcao": "ANALISTA DE EXPERIENCIA DO CONSUMIDOR JUNIOR",
+      "dept": "OPERAÇÕES LOJAS",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3224.34,
+      "admissao": "2024-05",
+      "tipo": "CLT",
+      "id": "055"
+    },
+    {
+      "cnpj": "CLT_39172851856",
+      "nome": "NAYURI ALEXANDRINA ROCHA",
+      "funcao": "ANALISTA DE RECURSOS HUMANOS PLENO",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4000.0,
+      "admissao": "2026-05",
+      "tipo": "CLT",
+      "id": "087"
+    },
+    {
+      "cnpj": "CLT_32083671805",
+      "nome": "PATRICIA FERREIRA DE OLIVEIRA",
+      "funcao": "ANALISTA DE DEPARTAMENTO PESSOAL PLENO",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4414.62,
+      "admissao": "2024-10",
+      "tipo": "CLT",
+      "id": "056"
+    },
+    {
+      "cnpj": "CLT_36304768800",
+      "nome": "RAFAEL FELIPE ELIEZER DA SILVA",
+      "funcao": "ANALISTA DE TREINAMENTO PLENO",
+      "dept": "GENTE E GESTÃO",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 5563.1,
+      "admissao": "2018-01",
+      "tipo": "CLT",
+      "id": "057"
+    },
+    {
+      "cnpj": "CLT_33757434838",
+      "nome": "RAFAEL SENRA GATTO",
+      "funcao": "ANALISTA DE MIDIAS SOCIAIS JUNIOR",
+      "dept": "MARKETING",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3200.0,
+      "admissao": "2025-12",
+      "tipo": "CLT",
+      "id": "058"
+    },
+    {
+      "cnpj": "CLT_36879024807",
+      "nome": "ROBERTA ASSUMPÇÃO MARCASSA",
+      "funcao": "ANALISTA DE QUALIDADE PLENO",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 4638.15,
+      "admissao": "2025-02",
+      "tipo": "CLT",
+      "id": "059"
+    },
+    {
+      "cnpj": "CLT_42790010811",
+      "nome": "TALITA CARPANI DE ARGOLO",
+      "funcao": "ASSISTENTE DE QUALIDADE",
+      "dept": "QUALIDADE",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 2438.0,
+      "admissao": "2026-03",
+      "tipo": "CLT",
+      "id": "070"
+    },
+    {
+      "cnpj": "CLT_47090248801",
+      "nome": "THAMIRES ANDRADE LOPES REIS",
+      "funcao": "ANALISTA DE OPERACOES DE RH JUNIOR",
+      "dept": "DEPARTAMENTO PESSOAL",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 3107.4,
+      "admissao": "2025-01",
+      "tipo": "CLT",
+      "id": "060"
+    },
+    {
+      "cnpj": "CLT_34413701801",
+      "nome": "WILLIAM RIBEIRO SOUZA",
+      "funcao": "COORDENADOR DE MANUTENCAO",
+      "dept": "MANUTENÇÃO E FACILITIES",
+      "empresa": "01-CABANA MATRIZ",
+      "salario": 8362.51,
+      "admissao": "2023-08",
+      "tipo": "CLT",
+      "id": "061"
     }
   ]
 };
@@ -3914,12 +5116,12 @@ function setScenarioProv(pct, btn) {
   renderProvisao();
 }
 function showSection(id, btn) {
+  // Scroll para o topo ANTES de trocar o conteúdo
+  window.scrollTo({ top: 0, behavior: 'instant' });
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   btn.classList.add('active');
-  // Scroll ao topo da página ao trocar de aba
-  window.scrollTo({ top: 0, behavior: 'instant' });
   if(id==='provisao')   renderProvisao();
   if(id==='base')       renderBase();
   if(id==='movimentos') renderMovimentos();
